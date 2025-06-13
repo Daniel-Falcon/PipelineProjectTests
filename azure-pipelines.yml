@@ -1,15 +1,21 @@
-trigger: none  # This disables auto-run on every push
+trigger: none
 
 pool:
   vmImage: 'ubuntu-latest'
 
 steps:
-  - task: DockerInstaller@0
-    displayName: 'Ensure Docker is installed'
+  - task: NodeTool@0
+    inputs:
+      versionSpec: '18.x'
 
   - script: |
-      docker run --rm \
-        -v $(System.DefaultWorkingDirectory):/e2e \
+      npm install
+    displayName: 'Install dependencies'
+
+  - script: |
+      docker run -i \
+        -v $PWD:/e2e \
         -w /e2e \
-        cypress/included:13.7.3
-    displayName: 'Run Cypress tests in Docker'
+        cypress/included:12.17.4 \
+        /bin/bash -c "xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx cypress run --headed --browser chrome"
+    displayName: 'Run Cypress in Docker (headed mode)'
