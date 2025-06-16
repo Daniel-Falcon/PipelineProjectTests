@@ -1,4 +1,4 @@
-FROM cypress/browsers:node-20.10.0-chrome-124-ff-124-edge-124
+FROM cypress/browsers:node-18.16.1-chrome-114
 
 # Install VNC and desktop environment
 RUN apt-get update && apt-get install -y \

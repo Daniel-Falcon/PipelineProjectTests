@@ -1,10 +1,11 @@
 #!/bin/bash
+# Start virtual framebuffer and VNC
+Xvfb :99 -screen 0 1280x1024x16 &
+export DISPLAY=:99
+fluxbox &
 
-# Start VNC
-vncserver :1 -geometry 1280x720 -depth 24
+# Optional: auto-start Cypress GUI or debug tools
+# npx cypress open &
 
-# Set DISPLAY so Cypress uses the virtual screen
-export DISPLAY=:1
-
-# Start Cypress in headed mode
-npx cypress run --headed --browser chrome
+# Start VNC server
+x11vnc -forever -usepw -create
