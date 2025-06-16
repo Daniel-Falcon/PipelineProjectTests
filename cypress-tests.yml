@@ -1,0 +1,22 @@
+trigger: none  # Only run when triggered
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+  - stage: RunCypressTests
+    jobs:
+      - job: E2ETests
+        steps:
+          - task: UseNode@1
+            inputs:
+              version: '18.x'
+
+          - script: |
+              npm install
+              npx cypress install
+            displayName: 'Install Cypress'
+
+          - script: |
+              npx cypress run 
+            displayName: 'Run Cypress Tests'

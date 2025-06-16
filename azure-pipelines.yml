@@ -1,0 +1,17 @@
+# azure-pipelines.yml (Cypress repo)
+
+trigger: none  # We'll trigger it manually or from Repo A
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+  - task: DockerInstaller@0
+    displayName: 'Install Docker'
+
+  - script: |
+      docker run --rm \
+        -v $(System.DefaultWorkingDirectory):/e2e \
+        -w /e2e \
+        cypress/included:13.7.3
+    displayName: 'Run Cypress in Docker container'
