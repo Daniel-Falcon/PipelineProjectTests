@@ -14,7 +14,6 @@ jobs:
         docker run --rm \
           -v $PWD:/e2e \
           -w /e2e \
-          -e CYPRESS_baseUrl=https://your-site-under-test \
           cypress/included:13.6.4 \
           run
       displayName: 'Run Cypress Tests'
