@@ -1,26 +1,9 @@
-<<<<<<< HEAD
-# azure-pipelines.yml (Cypress repo)
-
-trigger: none  # We'll trigger it manually or from Repo A
-=======
 trigger: none
->>>>>>> 816878245fee4aca9d7b52ff5e0bf572d4054219
 
 pool:
   vmImage: 'ubuntu-latest'
 
 steps:
-<<<<<<< HEAD
-  - task: DockerInstaller@0
-    displayName: 'Install Docker'
-
-  - script: |
-      docker run --rm \
-        -v $(System.DefaultWorkingDirectory):/e2e \
-        -w /e2e \
-        cypress/included:13.7.3
-    displayName: 'Run Cypress in Docker container'
-=======
   - task: NodeTool@0
     inputs:
       versionSpec: '18.x'
@@ -47,4 +30,3 @@ steps:
       artifact: 'cypress-videos'
     condition: always()
     displayName: 'Publish Cypress test videos'
->>>>>>> 816878245fee4aca9d7b52ff5e0bf572d4054219
