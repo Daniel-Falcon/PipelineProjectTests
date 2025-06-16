@@ -12,7 +12,7 @@ steps:
       versionSpec: '18.x'
 
   - script: |
-      docker build -t cypress-vnc .
+      docker build -t cypress-vnc ./Docker
     displayName: 'Build custom Cypress + VNC Docker image'
 
   - script: |
