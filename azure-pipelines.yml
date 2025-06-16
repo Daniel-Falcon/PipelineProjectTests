@@ -7,6 +7,8 @@ pool:
   vmImage: 'ubuntu-latest'
 
 steps:
+  - checkout: self  #THIS LINE ensures your repo is cloned before any Docker commands
+
   - task: NodeTool@0
     inputs:
       versionSpec: '18.x'
@@ -31,5 +33,4 @@ steps:
     inputs:
       targetPath: 'cypress/videos'
       artifact: 'cypress-videos'
-    condition: always()
-    displayName: 'Publish Cypress test videos'
+    condition: always
