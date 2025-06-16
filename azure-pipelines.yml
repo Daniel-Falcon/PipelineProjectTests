@@ -15,7 +15,14 @@ steps:
     displayName: 'Install Node.js'
 
   - script: |
-      docker build -t cypress-vnc ./Docker
+      echo "Working directory:"
+      pwd
+      echo "List contents:"
+      ls -la
+    displayName: 'Debug: Check current directory and contents'
+
+  - script: |
+      docker build -t cypress-vnc .
     displayName: 'Build custom Cypress + VNC Docker image'
 
   - script: |
