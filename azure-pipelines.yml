@@ -1,11 +1,16 @@
+<<<<<<< HEAD
 # azure-pipelines.yml (Cypress repo)
 
 trigger: none  # We'll trigger it manually or from Repo A
+=======
+trigger: none
+>>>>>>> 816878245fee4aca9d7b52ff5e0bf572d4054219
 
 pool:
   vmImage: 'ubuntu-latest'
 
 steps:
+<<<<<<< HEAD
   - task: DockerInstaller@0
     displayName: 'Install Docker'
 
@@ -15,3 +20,31 @@ steps:
         -w /e2e \
         cypress/included:13.7.3
     displayName: 'Run Cypress in Docker container'
+=======
+  - task: NodeTool@0
+    inputs:
+      versionSpec: '18.x'
+
+  - script: |
+      docker build -t cypress-vnc .
+    displayName: 'Build custom Cypress + VNC Docker image'
+
+  - script: |
+      docker run -d --name cypress-vnc-run \
+        -v $(pwd):/e2e \
+        -w /e2e \
+        -p 5901:5901 \
+        cypress-vnc
+    displayName: 'Run Cypress test inside Docker with VNC'
+
+  - script: |
+      docker logs cypress-vnc-run
+    displayName: 'Show Docker logs (optional)'
+
+  - task: PublishPipelineArtifact@1
+    inputs:
+      targetPath: 'cypress/videos'
+      artifact: 'cypress-videos'
+    condition: always()
+    displayName: 'Publish Cypress test videos'
+>>>>>>> 816878245fee4aca9d7b52ff5e0bf572d4054219
