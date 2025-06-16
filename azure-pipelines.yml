@@ -1,45 +1,45 @@
 trigger:
-  branches:
-    include:
-      - main
+- main
 
 pool:
   vmImage: 'ubuntu-latest'
 
-steps:
-  - checkout: self
+jobs:
+- job: CypressTests
+  displayName: 'Run Cypress Tests and Upload Videos'
+  steps:
+    # Checkout your repo
+    - checkout: self
 
-  - task: NodeTool@0
-    inputs:
-      versionSpec: '18.x'
-    displayName: 'Install Node.js'
+    # Optional: Build custom Docker image with Cypress + VNC (skip if not needed)
+    - script: |
+        docker build -t cypress-vnc .
+      displayName: 'Build custom Cypress + VNC Docker image'
+      continueOnError: true  # Optional: allow pipeline to continue even if this fails
 
-  - script: |
-      echo "Working directory:"
-      pwd
-      echo "List contents:"
-      ls -la
-    displayName: 'Debug: Check current directory and contents'
+    # Run Cypress tests inside Docker
+    - script: |
+        docker run --rm \
+          -v $PWD:/e2e \
+          -w /e2e \
+          cypress/included:13.6.4 \
+          run
+      displayName: 'Run Cypress Tests'
 
-  - script: |
-      docker build -t cypress-vnc .
-    displayName: 'Build custom Cypress + VNC Docker image'
+    # Optional: Print Cypress videos folder if it exists
+    - script: |
+        if [ -d "$(System.DefaultWorkingDirectory)/cypress/videos" ]; then
+          echo "Videos found:"
+          ls -R $(System.DefaultWorkingDirectory)/cypress/videos
+        else
+          echo "No Cypress videos directory found."
+        fi
+      displayName: 'Check for Cypress videos'
 
-  - script: |
-      docker run -d --name cypress-vnc-run \
-        -v $(pwd):/e2e \
-        -w /e2e \
-        -p 5901:5901 \
-        cypress-vnc
-    displayName: 'Run Cypress test inside Docker with VNC'
-
-  - script: |
-      docker logs cypress-vnc-run
-    displayName: 'Show Docker logs (optional)'
-
-  - task: PublishPipelineArtifact@1
-    inputs:
-      targetPath: 'cypress/videos'
-      artifact: 'cypress-videos'
-    condition: always()
-    displayName: 'Publish Cypress test videos'
+    # Upload videos only if they exist
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish Cypress test videos'
+      condition: and(succeededOrFailed(), exists('$(System.DefaultWorkingDirectory)/cypress/videos'))
+      inputs:
+        targetPath: '$(System.DefaultWorkingDirectory)/cypress/videos'
+        artifactName: 'cypress-videos'
