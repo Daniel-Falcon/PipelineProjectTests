@@ -7,11 +7,12 @@ pool:
   vmImage: 'ubuntu-latest'
 
 steps:
-  - checkout: self  #THIS LINE ensures your repo is cloned before any Docker commands
+  - checkout: self
 
   - task: NodeTool@0
     inputs:
       versionSpec: '18.x'
+    displayName: 'Install Node.js'
 
   - script: |
       docker build -t cypress-vnc ./Docker
@@ -33,4 +34,5 @@ steps:
     inputs:
       targetPath: 'cypress/videos'
       artifact: 'cypress-videos'
-    condition: always
+    condition: always()
+    displayName: 'Publish Cypress test videos'
