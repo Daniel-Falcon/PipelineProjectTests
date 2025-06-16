@@ -1,23 +1,15 @@
-FROM cypress/browsers:node-18.12.0-chrome-107
+FROM cypress/browsers:node-18.16.0-chrome-113-ff-112-edge-113
 
 # Install VNC and desktop environment
 RUN apt-get update && apt-get install -y \
-  xfce4 xfce4-goodies \
-  tightvncserver \
-  xterm
+    x11vnc xvfb fluxbox xterm wget net-tools \
+    && apt-get clean
 
-# Set up a user
-RUN useradd -m cypressuser
-USER cypressuser
-WORKDIR /home/cypressuser
+# Expose VNC port
+EXPOSE 5901
 
-# Set VNC password
-RUN mkdir ~/.vnc && \
-    echo "vncpassword" | vncpasswd -f > ~/.vnc/passwd && \
-    chmod 600 ~/.vnc/passwd
+# Startup script
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
 
-# Start script
-COPY start.sh /home/cypressuser/start.sh
-RUN chmod +x /home/cypressuser/start.sh
-
-CMD ["./start.sh"]
+CMD ["/start.sh"]
