@@ -9,13 +9,24 @@ steps:
       versionSpec: '18.x'
 
   - script: |
-      npm install
-    displayName: 'Install dependencies'
+      docker build -t cypress-vnc .
+    displayName: 'Build custom Cypress + VNC Docker image'
 
   - script: |
-      docker run -i \
-        -v $PWD:/e2e \
+      docker run -d --name cypress-vnc-run \
+        -v $(pwd):/e2e \
         -w /e2e \
-        cypress/included:12.17.4 \
-        /bin/bash -c "xvfb-run --auto-servernum --server-args='-screen 0 1920x1080x24' npx cypress run --headed --browser chrome"
-    displayName: 'Run Cypress in Docker (headed mode)'
+        -p 5901:5901 \
+        cypress-vnc
+    displayName: 'Run Cypress test inside Docker with VNC'
+
+  - script: |
+      docker logs cypress-vnc-run
+    displayName: 'Show Docker logs (optional)'
+
+  - task: PublishPipelineArtifact@1
+    inputs:
+      targetPath: 'cypress/videos'
+      artifact: 'cypress-videos'
+    condition: always()
+    displayName: 'Publish Cypress test videos'
