@@ -1,5 +1,9 @@
-trigger:
-- main
+trigger: none
+
+parameters:
+  - name: testFile
+    type: string
+    default: 'loginTest.cy.js'
 
 pool:
   vmImage: 'ubuntu-latest'
@@ -11,14 +15,14 @@ jobs:
     - checkout: self
 
     - script: |
+        echo "Running test: ${{ parameters.testFile }}"
         docker run --rm \
           -v $PWD:/e2e \
           -w /e2e \
           cypress/included:13.6.4 \
-          run
-      displayName: 'Run Cypress Tests'
+          run --spec "cypress/e2e/${{ parameters.testFile }}"
+      displayName: 'Run Cypress Test'
 
-    # Check for Cypress videos folder and set variable
     - script: |
         if [ -d "$(System.DefaultWorkingDirectory)/cypress/videos" ]; then
           echo "##vso[task.setvariable variable=hasVideos]true"
@@ -27,7 +31,6 @@ jobs:
         fi
       displayName: 'Check if Cypress videos exist'
 
-    # Publish videos only if they exist
     - task: PublishPipelineArtifact@1
       displayName: 'Publish Cypress test videos'
       condition: and(succeededOrFailed(), eq(variables.hasVideos, 'true'))
