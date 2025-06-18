@@ -1,10 +1,4 @@
-trigger:
-- main
-
-parameters:
-  - name: testFile
-    type: string
-    default: 'loginTest.cy.js'
+trigger: none
 
 pool:
   vmImage: 'ubuntu-latest'
@@ -16,13 +10,13 @@ jobs:
     - checkout: self
 
     - script: |
-        echo "Running test: ${{ parameters.testFile }}"
+        echo "Running default Cypress tests"
         docker run --rm \
           -v $PWD:/e2e \
           -w /e2e \
           cypress/included:13.6.4 \
-          run --spec "cypress/e2e/${{ parameters.testFile }}"
-      displayName: 'Run Cypress Test'
+          run
+      displayName: 'Run Cypress Tests'
 
     - script: |
         if [ -d "$(System.DefaultWorkingDirectory)/cypress/videos" ]; then
