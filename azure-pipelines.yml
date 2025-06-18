@@ -1,32 +1,36 @@
 trigger:
-- main
-
+  branches:
+    include:
+    - main
 pool:
   vmImage: 'ubuntu-latest'
-
-jobs:
-- job: CypressTests
-  displayName: 'Run Cypress Tests and Upload Videos'
-  steps:
-    - checkout: self
-
-    - script: |
-        echo "Running default Cypress tests"
-        docker run --rm \
-          -v $PWD:/e2e \
-          -w /e2e \
-          cypress/included:13.6.4 \
-          run
+stages:
+- stage: __default
+  jobs:
+  - job: CypressTests
+    displayName: 'Run Cypress Tests and Upload Videos'
+    steps:
+    - task: 6d15af64-176c-496d-b583-fd2ae21d4df4@1
+      inputs:
+        repository: self
+    - task: CmdLine@2
       displayName: 'Run Cypress Tests'
-
-    - script: |
-        if [ -d "$(System.DefaultWorkingDirectory)/cypress/videos" ]; then
-          echo "##vso[task.setvariable variable=hasVideos]true"
-        else
-          echo "##vso[task.setvariable variable=hasVideos]false"
-        fi
+      inputs:
+        script: |
+          docker run --rm \
+            -v $PWD:/e2e \
+            -w /e2e \
+            cypress/included:13.6.4 \
+            run
+    - task: CmdLine@2
       displayName: 'Check if Cypress videos exist'
-
+      inputs:
+        script: |
+          if [ -d "$(System.DefaultWorkingDirectory)/cypress/videos" ]; then
+            echo "##vso[task.setvariable variable=hasVideos]true"
+          else
+            echo "##vso[task.setvariable variable=hasVideos]false"
+          fi
     - task: PublishPipelineArtifact@1
       displayName: 'Publish Cypress test videos'
       condition: and(succeededOrFailed(), eq(variables.hasVideos, 'true'))
