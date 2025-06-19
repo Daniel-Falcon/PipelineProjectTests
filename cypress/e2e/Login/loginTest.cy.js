@@ -1,5 +1,6 @@
 describe('Growthzone Login', () => {
   it('Login with valid credentials', () => {
+    cy.visit('https://growthzonedev.com/');
     cy.get('#check-user-name-field')
       .type('micronet\\daniel.falcon');
 
