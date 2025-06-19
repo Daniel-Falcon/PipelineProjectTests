@@ -1,39 +1,36 @@
 trigger:
-  branches:
-    include:
-    - main
+- main
+
+parameters:
+  - name: testFiles
+    type: string
+    default: ''
+
 pool:
   vmImage: 'ubuntu-latest'
-stages:
-- stage: __default
-  jobs:
-  - job: CypressTests
-    displayName: 'Run Cypress Tests and Upload Videos'
-    steps:
-    - task: 6d15af64-176c-496d-b583-fd2ae21d4df4@1
-      inputs:
-        repository: self
+
+jobs:
+- job: CypressTests
+  displayName: 'Run Cypress Tests'
+  steps:
+    - checkout: self
+
     - task: CmdLine@2
       displayName: 'Run Cypress Tests'
       inputs:
         script: |
-          docker run --rm \
-            -v $PWD:/e2e \
-            -w /e2e \
-            cypress/included:13.6.4 \
-            run
-    - task: CmdLine@2
-      displayName: 'Check if Cypress videos exist'
-      inputs:
-        script: |
-          if [ -d "$(System.DefaultWorkingDirectory)/cypress/videos" ]; then
-            echo "##vso[task.setvariable variable=hasVideos]true"
+          if [ -z "${{ parameters.testFiles }}" ]; then
+            echo "No testFiles parameter provided — running all tests"
+            docker run --rm \
+              -v $PWD:/e2e \
+              -w /e2e \
+              cypress/included:13.6.4 \
+              run
           else
-            echo "##vso[task.setvariable variable=hasVideos]false"
+            echo "Running tests matching: ${{ parameters.testFiles }}"
+            docker run --rm \
+              -v $PWD:/e2e \
+              -w /e2e \
+              cypress/included:13.6.4 \
+              run --spec "${{ parameters.testFiles }}"
           fi
-    - task: PublishPipelineArtifact@1
-      displayName: 'Publish Cypress test videos'
-      condition: and(succeededOrFailed(), eq(variables.hasVideos, 'true'))
-      inputs:
-        targetPath: '$(System.DefaultWorkingDirectory)/cypress/videos'
-        artifactName: 'cypress-videos'
