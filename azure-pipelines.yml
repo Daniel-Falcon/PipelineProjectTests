@@ -1,36 +1,42 @@
 trigger:
-- main
+  branches:
+    include:
+      - main
 
 parameters:
-  - name: testFiles
+  - name: testFolder
     type: string
     default: ''
 
 pool:
   vmImage: 'ubuntu-latest'
 
-jobs:
-- job: CypressTests
-  displayName: 'Run Cypress Tests'
-  steps:
+stages:
+- stage: RunCypressTests
+  jobs:
+  - job: CypressTests
+    displayName: 'Run Cypress Tests'
+    steps:
     - checkout: self
 
-    - task: CmdLine@2
-      displayName: 'Run Cypress Tests'
-      inputs:
-        script: |
-          if [ -z "${{ parameters.testFiles }}" ]; then
-            echo "No testFiles parameter provided — running all tests"
-            docker run --rm \
-              -v $PWD:/e2e \
-              -w /e2e \
-              cypress/included:13.6.4 \
-              run
-          else
-            echo "Running tests matching: ${{ parameters.testFiles }}"
-            docker run --rm \
-              -v $PWD:/e2e \
-              -w /e2e \
-              cypress/included:13.6.4 \
-              run --spec "${{ parameters.testFiles }}"
-          fi
+    - script: |
+        echo "🧪 testFolder param = '$TEST_FOLDER'"
+
+        if [ -z "$TEST_FOLDER" ]; then
+          echo "No folder specified. Running ALL tests..."
+          docker run --rm \
+            -v $PWD:/e2e \
+            -w /e2e \
+            cypress/included:13.6.4 \
+            run
+        else
+          echo "Running tests in folder: cypress/e2e/$TEST_FOLDER"
+          docker run --rm \
+            -v $PWD:/e2e \
+            -w /e2e \
+            cypress/included:13.6.4 \
+            run --spec "cypress/e2e/$TEST_FOLDER/**/*.cy.js"
+        fi
+      displayName: 'Run Cypress Tests with Folder Parameter'
+      env:
+        TEST_FOLDER: ${{ parameters.testFolder }}
