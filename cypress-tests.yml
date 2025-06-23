@@ -1,22 +1,185 @@
-trigger: none  # Only run when triggered
+trigger:
+- main
 
-pool:
-  vmImage: 'ubuntu-latest'
+variables:
+  solution: '**/*.sln'
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Release'
+  daysThreshold: 3
+  targetRunId: 6
+  found: false
 
 stages:
-  - stage: RunCypressTests
-    jobs:
-      - job: E2ETests
-        steps:
-          - task: UseNode@1
-            inputs:
-              version: '18.x'
+# Stage 1: Build & Test the Web App
+- stage: BuildAndTest
+  displayName: 'Build and Test Web App'
+  jobs:
+    - job: BuildJob
+      displayName: 'Build and Test (.NET Framework)'
+      pool:
+        vmImage: 'windows-latest'
+      steps:
+        - task: NuGetToolInstaller@1
 
-          - script: |
-              npm install
-              npx cypress install
-            displayName: 'Install Cypress'
+        - task: NuGetCommand@2
+          inputs:
+            restoreSolution: '$(solution)'
 
-          - script: |
-              npx cypress run 
-            displayName: 'Run Cypress Tests'
+        - task: VSBuild@1
+          inputs:
+            solution: '$(solution)'
+            msbuildArgs: >
+              /p:DeployOnBuild=true
+              /p:WebPublishMethod=Package
+              /p:PackageAsSingleFile=true
+              /p:SkipInvalidConfigurations=true
+              /p:DesktopBuildPackageLocation="$(build.artifactStagingDirectory)\WebApp.zip"
+              /p:DeployIisAppPath="Default Web Site"
+            platform: '$(buildPlatform)'
+            configuration: '$(buildConfiguration)'
+
+        - task: VSTest@2
+          inputs:
+            platform: '$(buildPlatform)'
+            configuration: '$(buildConfiguration)'
+
+# Stage 2: Trigger Cypress Pipeline
+- stage: TriggerCypress
+   displayName:'Trigger Cypress Pipeline with Folder Parameter'
+   dependsOn:
+     - BuildAndTest
+   condition: succeeded()
+   jobs:
+     - job: TriggerJob
+       displayName: 'Trigger Test Pipeline via REST API'
+       pool:
+         vmImage: 'ubuntu-latest'
+       steps:
+         - task: CmdLine@2
+           displayName: 'Trigger Pipeline ID 3 with testFolder=Login'
+           env:
+             SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+           inputs:
+             script: |
+               echo "Triggering Pipeline ID 3 in project 'angular-with-azure' with testFolder='Login'..."
+                RESPONSE=$(curl -s -o response.json -w "%{http_code}" -X POST \
+                 -H "Authorization: Bearer $SYSTEM_ACCESSTOKEN" \
+                 -H "Content-Type: application/json" \
+                 -d '{
+                       "resources": {
+                         "repositories": {
+                           "self": {
+                             "refName": "refs/heads/main"
+                           }
+                         }
+                       },
+                       "templateParameters": {
+                         "testFolder": "Login"
+                       }
+                     }' \
+                 https://dev.azure.com/ams-release-streamline/angular-with-azure/_apis/pipelines/3/runs?api-version=6.0-preview.1)
+                echo "HTTP status: $RESPONSE"
+               echo "Azure DevOps API response:"
+               cat response.json
+                if [ "$RESPONSE" -ge 400 ]; then
+                 echo "Failed to trigger pipeline. Exiting."
+                 exit 1
+               fi
+
+# Stage 3: List Previous Pipeline Runs
+- stage: ListPreviousRuns
+  displayName: 'List Previous Pipeline Runs'
+  dependsOn: TriggerCypress
+  condition: succeeded()
+  jobs:
+    - job: ListRunsJob
+      displayName: 'Fetch and Display Recent Pipeline Runs'
+      pool:
+        vmImage: 'ubuntu-latest'
+      steps:
+        - task: PowerShell@2
+          displayName: 'List Recent Pipeline Runs Older Than Threshold'
+          inputs:
+            targetType: 'inline'
+            script: |
+              $org = "ams-release-streamline"
+              $project = "angular-with-azure"
+              $pipelineId = 2
+              $uri = "https://dev.azure.com/$org/$project/_apis/pipelines/$pipelineId/runs?api-version=7.0"
+              $daysThreshold = [int]$env:DAYS_THRESHOLD
+              $targetRunId = [int]$env:TARGET_RUN_ID
+              $cutoffDate = (Get-Date).AddDays(-$daysThreshold)
+
+              Write-Host "Fetching pipeline runs for Pipeline ID: $pipelineId"
+              Write-Host "Filtering runs older than $daysThreshold day(s) (before $cutoffDate)..."
+
+              try {
+                $headers = @{ Authorization = "Bearer $env:SYSTEM_ACCESSTOKEN" }
+                $response = Invoke-RestMethod -Uri $uri -Headers $headers
+                $found = $false
+
+                foreach ($run in $response.value) {
+                  $runId = $run.id
+                  $created = Get-Date $run.createdDate
+
+                  Write-Host "🔍 Comparing runId: $runId to targetRunId: $targetRunId"
+
+                  if ($created -lt $cutoffDate -and $runId -eq $targetRunId) {
+                    $state = $run.state
+                    $result = $run.result
+                    $triggeredBy = $run.triggering?.user?.displayName
+                    if (-not $triggeredBy) { $triggeredBy = $run.requestedFor?.displayName }
+                    $repoName = $run.resources.repositories.self.refName
+                    $commitId = $run.resources.repositories.self.version
+                    $commitMessage = "$repoName - $commitId"
+
+                    Write-Host "→ Run ID: $runId"
+                    Write-Host "   • Status: $state, Result: $result, Created: $created"
+                    Write-Host "   • Triggered by: $triggeredBy"
+                    Write-Host "   • Commit: $commitMessage"
+                    Write-Host ""
+
+                    $found = $true
+                    break
+                  }
+                }
+
+                if (-not $found) {
+                  Write-Host "⚠️ No matching pipeline run found with ID $targetRunId older than $daysThreshold day(s)."
+                }
+
+              } catch {
+                Write-Host "❌ Failed to fetch pipeline runs. Error: $_"
+              }
+          env:
+            SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+            DAYS_THRESHOLD: $(daysThreshold)
+            TARGET_RUN_ID: $(targetRunId)
+
+# Stage 4: Notify Power Automate on PR Merge
+# - stage: NotifyPowerAutomate
+#   displayName: 'Notify Power Automate of PR Merge'
+#   dependsOn: BuildAndTest
+#   condition: and(succeeded(), eq(variables['Build.Reason'], 'PullRequest'))
+#   jobs:
+#     - job: NotifyJob
+#       displayName: 'Send PR info to Power Automate'
+#       pool:
+#         vmImage: 'ubuntu-latest'
+#       steps:
+#         - script: |
+#             echo "Sending PR info to Power Automate..."
+
+#             curl -X POST \
+#               -H "Content-Type: application/json" \
+#               -d '{
+#                 "title": "'$(Build.SourceBranchName)' merged into main",
+#                 "url": "https://dev.azure.com/ams-release-streamline/angular-with-azure/_git/sampleapp/pullrequest/$(System.PullRequest.PullRequestId)",
+#                 "author": "$(Build.RequestedFor)",
+#                 "merged_by": "$(Build.RequestedFor)",
+#                 "merged_at": "'$(date -u +%Y-%m-%dT%H:%M:%SZ')'"
+#               }' \
+#               "$(POWER_AUTOMATE_WEBHOOK_URL)"
+#           displayName: 'POST to Power Automate'
+#           env:
+#             POWER_AUTOMATE_WEBHOOK_URL: $(POWER_AUTOMATE_WEBHOOK_URL)
