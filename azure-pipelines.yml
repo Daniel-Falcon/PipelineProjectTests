@@ -12,7 +12,7 @@ pool:
   vmImage: 'ubuntu-latest'
 
 stages:
-- stage: __default
+- stage: RunCypressTests
   jobs:
   - job: CypressTests
     displayName: 'Run Cypress Tests'
@@ -20,21 +20,23 @@ stages:
     - checkout: self
 
     - script: |
-        echo "🧪 testFolder param = '${{ parameters.testFolder }}'"
+        echo "🧪 testFolder param = '$TEST_FOLDER'"
 
-        if [ -z "${{ parameters.testFolder }}" ]; then
-          echo "📂 No folder specified. Running ALL tests..."
+        if [ -z "$TEST_FOLDER" ]; then
+          echo "No folder specified. Running ALL tests..."
           docker run --rm \
             -v $PWD:/e2e \
             -w /e2e \
             cypress/included:13.6.4 \
             run
         else
-          echo "📂 Running tests in folder: cypress/e2e/${{ parameters.testFolder }}"
+          echo "Running tests in folder: cypress/e2e/$TEST_FOLDER"
           docker run --rm \
             -v $PWD:/e2e \
             -w /e2e \
             cypress/included:13.6.4 \
-            run --spec "cypress/e2e/${{ parameters.testFolder }}/**/*.cy.js"
+            run --spec "cypress/e2e/$TEST_FOLDER/**/*.cy.js"
         fi
       displayName: 'Run Cypress Tests with Folder Parameter'
+      env:
+        TEST_FOLDER: ${{ parameters.testFolder }}
